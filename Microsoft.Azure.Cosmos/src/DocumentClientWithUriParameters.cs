@@ -86,24 +86,16 @@ namespace Microsoft.Azure.Cosmos
             {
                 return await this.ReadDocumentCollectionAsync(documentCollectionUri, options);
             }
-            catch (DocumentClientException dce)
+            catch (DocumentClientException dce) when (dce.StatusCode == HttpStatusCode.NotFound)
             {
-                if (dce.StatusCode != HttpStatusCode.NotFound)
-                {
-                    throw;
-                }
             }
 
             try
             {
                 return await this.CreateDocumentCollectionAsync(databaseUri, documentCollection, options);
             }
-            catch (DocumentClientException ex)
+            catch (DocumentClientException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
-                if (ex.StatusCode != HttpStatusCode.Conflict)
-                {
-                    throw;
-                }
             }
 
             return await this.ReadDocumentCollectionAsync(documentCollectionUri, options);

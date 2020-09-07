@@ -832,7 +832,7 @@ namespace Microsoft.Azure.Cosmos
         {
             if (!this.accountConsistencyLevel.HasValue)
             {
-                this.accountConsistencyLevel = await this.DocumentClient.GetDefaultConsistencyLevelAsync();
+                this.accountConsistencyLevel = await this.DocumentClient.GetDefaultConsistencyLevelAsync().ConfigureAwait(false);
             }
 
             return this.accountConsistencyLevel.Value;

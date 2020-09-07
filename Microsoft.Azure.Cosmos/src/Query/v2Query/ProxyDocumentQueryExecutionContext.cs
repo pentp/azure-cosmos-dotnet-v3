@@ -33,7 +33,6 @@ namespace Microsoft.Azure.Cosmos.Query
         private readonly string resourceLink;
 
         private readonly ContainerProperties collection;
-        private readonly bool isContinuationExpected;
 
         private readonly Guid correlatedActivityId;
 
@@ -48,7 +47,6 @@ namespace Microsoft.Azure.Cosmos.Query
             FeedOptions feedOptions,
             string resourceLink,
             ContainerProperties collection,
-            bool isContinuationExpected,
             Guid correlatedActivityId)
         {
             this.innerExecutionContext = innerExecutionContext;
@@ -61,7 +59,6 @@ namespace Microsoft.Azure.Cosmos.Query
             this.resourceLink = resourceLink;
 
             this.collection = collection;
-            this.isContinuationExpected = isContinuationExpected;
 
             this.correlatedActivityId = correlatedActivityId;
         }
@@ -90,7 +87,6 @@ namespace Microsoft.Azure.Cosmos.Query
                 feedOptions,
                 resourceLink,
                 collection,
-                isContinuationExpected,
                 correlatedActivityId);
         }
 
@@ -111,19 +107,14 @@ namespace Microsoft.Azure.Cosmos.Query
                 throw new InvalidOperationException(RMResources.DocumentQueryExecutionContextIsDone);
             }
 
-            Error error = null;
+            Error error;
 
             try
             {
-                return await this.innerExecutionContext.ExecuteNextFeedResponseAsync(token);
+                return await this.innerExecutionContext.ExecuteNextFeedResponseAsync(token).ConfigureAwait(false);
             }
-            catch (DocumentClientException ex)
+            catch (DocumentClientException ex) when (ex.StatusCode == HttpStatusCode.BadRequest && ex.GetSubStatus() == SubStatusCodes.CrossPartitionQueryNotServable)
             {
-                if (ex.StatusCode != HttpStatusCode.BadRequest || ex.GetSubStatus() != SubStatusCodes.CrossPartitionQueryNotServable)
-                {
-                    throw;
-                }
-
                 error = ex.Error;
             }
 
@@ -135,8 +126,8 @@ namespace Microsoft.Azure.Cosmos.Query
 
             List<PartitionKeyRange> partitionKeyRanges =
                 await
-                    queryExecutionContext.GetTargetPartitionKeyRangesAsync(collection.ResourceId,
-                        partitionedQueryExecutionInfo.QueryRanges);
+                    queryExecutionContext.GetTargetPartitionKeyRangesAsync(this.collection.ResourceId,
+                        partitionedQueryExecutionInfo.QueryRanges).ConfigureAwait(false);
 
             DocumentQueryExecutionContextBase.InitParams constructorParams = new DocumentQueryExecutionContextBase.InitParams(this.client, this.resourceTypeEnum, this.resourceType, this.expression, this.feedOptions, this.resourceLink, false, correlatedActivityId);
             // Devnote this will get replace by the new v3 to v2 logic

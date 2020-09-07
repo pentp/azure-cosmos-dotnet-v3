@@ -87,7 +87,7 @@ namespace Microsoft.Azure.Cosmos
                     break;
                 }
 
-                await operation.MaterializeResourceAsync(this.serializerCore, cancellationToken);
+                await operation.MaterializeResourceAsync(this.serializerCore, cancellationToken).ConfigureAwait(false);
                 materializedCount++;
 
                 previousOperationIndex = operation.OperationIndex;
@@ -113,7 +113,7 @@ namespace Microsoft.Azure.Cosmos
             this.bodyStream = new MemoryStream(approximateTotalLength + (operationSerializationOverheadOverEstimateInBytes * materializedCount));
             this.operationResizableWriteBuffer = new MemorySpanResizer<byte>(estimatedMaxOperationLength + operationSerializationOverheadOverEstimateInBytes);
 
-            Result r = await this.bodyStream.WriteRecordIOAsync(default(Segment), this.WriteOperation);
+            Result r = await this.bodyStream.WriteRecordIOAsync(default(Segment), this.WriteOperation).ConfigureAwait(false);
             Debug.Assert(r == Result.Success, "Failed to serialize batch request");
 
             this.bodyStream.Position = 0;

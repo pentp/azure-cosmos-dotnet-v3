@@ -84,24 +84,24 @@ namespace Microsoft.Azure.Cosmos.Query
 
         async Task<CollectionCache> IDocumentQueryClient.GetCollectionCacheAsync()
         {
-            return await this.innerClient.GetCollectionCacheAsync();
+            return await this.innerClient.GetCollectionCacheAsync().ConfigureAwait(false);
         }
 
         async Task<IRoutingMapProvider> IDocumentQueryClient.GetRoutingMapProviderAsync()
         {
-            return await this.innerClient.GetPartitionKeyRangeCacheAsync();
+            return await this.innerClient.GetPartitionKeyRangeCacheAsync().ConfigureAwait(false);
         }
 
         public async Task<QueryPartitionProvider> GetQueryPartitionProviderAsync(CancellationToken cancellationToken)
         {
             if (this.queryPartitionProvider == null)
             {
-                await this.semaphore.WaitAsync(cancellationToken);
+                await this.semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
                 if (this.queryPartitionProvider == null)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    this.queryPartitionProvider = new QueryPartitionProvider(await this.innerClient.GetQueryEngineConfigurationAsync());
+                    this.queryPartitionProvider = new QueryPartitionProvider(await this.innerClient.GetQueryEngineConfigurationAsync().ConfigureAwait(false));
                 }
 
                 this.semaphore.Release();
@@ -122,12 +122,12 @@ namespace Microsoft.Azure.Cosmos.Query
 
         public async Task<ConsistencyLevel> GetDefaultConsistencyLevelAsync()
         {
-            return (ConsistencyLevel)await this.innerClient.GetDefaultConsistencyLevelAsync();
+            return (ConsistencyLevel)await this.innerClient.GetDefaultConsistencyLevelAsync().ConfigureAwait(false);
         }
 
-        public Task<ConsistencyLevel?> GetDesiredConsistencyLevelAsync()
+        public ConsistencyLevel? GetDesiredConsistencyLevel()
         {
-            return this.innerClient.GetDesiredConsistencyLevelAsync();
+            return this.innerClient.GetDesiredConsistencyLevel();
         }
 
         public Task EnsureValidOverwriteAsync(ConsistencyLevel requestedConsistencyLevel)

@@ -11,7 +11,6 @@ namespace Microsoft.Azure.Cosmos.Handlers
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.Azure.Cosmos.Diagnostics;
     using Microsoft.Azure.Documents;
     using Microsoft.Azure.Documents.Routing;
 
@@ -20,7 +19,6 @@ namespace Microsoft.Azure.Cosmos.Handlers
     /// </summary>
     internal class RequestInvokerHandler : RequestHandler
     {
-        private static (bool, ResponseMessage) clientIsValid = (false, null);
         private readonly CosmosClient client;
         private Cosmos.ConsistencyLevel? AccountConsistencyLevel = null;
         private Cosmos.ConsistencyLevel? RequestedClientConsistencyLevel;
@@ -50,16 +48,19 @@ namespace Microsoft.Azure.Cosmos.Handlers
                 promotedRequestOptions.PopulateRequestOptions(request);
             }
 
-            await this.ValidateAndSetConsistencyLevelAsync(request);
-            (bool isError, ResponseMessage errorResponse) = await this.EnsureValidClientAsync(request);
-            if (isError)
+            await this.ValidateAndSetConsistencyLevelAsync(request).ConfigureAwait(false);
+            try
             {
-                return errorResponse;
+                await this.client.DocumentClient.EnsureValidClientAsync().ConfigureAwait(false);
+            }
+            catch (DocumentClientException dce)
+            {
+                return dce.ToCosmosResponseMessage(request);
             }
 
-            await request.AssertPartitioningDetailsAsync(this.client, cancellationToken);
+            await request.AssertPartitioningDetailsAsync(this.client, cancellationToken).ConfigureAwait(false);
             this.FillMultiMasterContext(request);
-            return await base.SendAsync(request, cancellationToken);
+            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
         public virtual async Task<T> SendAsync<T>(
@@ -90,7 +91,7 @@ namespace Microsoft.Azure.Cosmos.Handlers
                 streamPayload: streamPayload,
                 requestEnricher: requestEnricher,
                 diagnosticsContext: diagnosticsScope,
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return responseCreator(responseMessage);
         }
@@ -155,7 +156,7 @@ namespace Microsoft.Azure.Cosmos.Handlers
                         {
                             try
                             {
-                                PartitionKeyInternal partitionKeyInternal = await cosmosContainerCore.GetNonePartitionKeyValueAsync(cancellationToken);
+                                PartitionKeyInternal partitionKeyInternal = await cosmosContainerCore.GetNonePartitionKeyValueAsync(cancellationToken).ConfigureAwait(false);
                                 request.Headers.PartitionKey = partitionKeyInternal.ToJsonString();
                             }
                             catch (DocumentClientException dce)
@@ -184,7 +185,7 @@ namespace Microsoft.Azure.Cosmos.Handlers
                 }
 
                 requestEnricher?.Invoke(request);
-                return await this.SendAsync(request, cancellationToken);
+                return await this.SendAsync(request, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -235,19 +236,6 @@ namespace Microsoft.Azure.Cosmos.Handlers
             }
         }
 
-        private async Task<(bool, ResponseMessage)> EnsureValidClientAsync(RequestMessage request)
-        {
-            try
-            {
-                await this.client.DocumentClient.EnsureValidClientAsync();
-                return RequestInvokerHandler.clientIsValid;
-            }
-            catch (DocumentClientException dce)
-            {
-                return (true, dce.ToCosmosResponseMessage(request));
-            }
-        }
-
         private void FillMultiMasterContext(RequestMessage request)
         {
             if (this.client.DocumentClient.UseMultipleWriteLocations)
@@ -275,7 +263,7 @@ namespace Microsoft.Azure.Cosmos.Handlers
             {
                 if (!this.AccountConsistencyLevel.HasValue)
                 {
-                    this.AccountConsistencyLevel = await this.client.GetAccountConsistencyLevelAsync();
+                    this.AccountConsistencyLevel = await this.client.GetAccountConsistencyLevelAsync().ConfigureAwait(false);
                 }
 
                 if (ValidationHelpers.IsValidConsistencyLevelOverwrite(this.AccountConsistencyLevel.Value, consistencyLevel.Value))

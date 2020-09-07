@@ -133,18 +133,13 @@ namespace Microsoft.Azure.Cosmos.Routing
                     collectionRid,
                     null,
                     () => this.GetRoutingMapForCollectionAsync(collectionRid, null, CancellationToken.None),
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
                 return routingMap.TryGetRangeByPartitionKeyRangeId(partitionKeyRangeId);
             }
-            catch (DocumentClientException ex)
+            catch (DocumentClientException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
-                if (ex.StatusCode == HttpStatusCode.NotFound)
-                {
-                    return null;
-                }
-
-                throw;
+                return null;
             }
         }
 

@@ -642,7 +642,7 @@ namespace Microsoft.Azure.Cosmos
                         operationType,
                         requestOptions,
                         diagnosticsContext: diagnosticsContext,
-                        cancellationToken: cancellationToken);
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
             PartitionKeyMismatchRetryPolicy requestRetryPolicy = null;
@@ -650,7 +650,7 @@ namespace Microsoft.Azure.Cosmos
             {
                 using (diagnosticsContext.CreateScope("ExtractPkValue"))
                 {
-                    partitionKey = await this.GetPartitionKeyValueFromStreamAsync(itemStream, cancellationToken);
+                    partitionKey = await this.GetPartitionKeyValueFromStreamAsync(itemStream, cancellationToken).ConfigureAwait(false);
                 }
 
                 ResponseMessage responseMessage = await this.ProcessItemStreamAsync(
@@ -660,7 +660,7 @@ namespace Microsoft.Azure.Cosmos
                     operationType,
                     requestOptions,
                     diagnosticsContext: diagnosticsContext,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 if (responseMessage.IsSuccessStatusCode)
                 {
@@ -713,7 +713,7 @@ namespace Microsoft.Azure.Cosmos
                 streamPayload: streamPayload,
                 requestEnricher: null,
                 diagnosticsContext: diagnosticsContext,
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return responseMessage;
         }
@@ -742,7 +742,7 @@ namespace Microsoft.Azure.Cosmos
                 IJsonNavigatorNode jsonNavigatorNode = jsonNavigator.GetRootNode();
                 CosmosObject pathTraversal = CosmosObject.Create(jsonNavigator, jsonNavigatorNode);
 
-                IReadOnlyList<IReadOnlyList<string>> tokenslist = await this.GetPartitionKeyPathTokensAsync(cancellation);
+                IReadOnlyList<IReadOnlyList<string>> tokenslist = await this.GetPartitionKeyPathTokensAsync(cancellation).ConfigureAwait(false);
                 List<CosmosElement> cosmosElementList = new List<CosmosElement>(tokenslist.Count);
 
                 foreach (IReadOnlyList<string> tokenList in tokenslist)

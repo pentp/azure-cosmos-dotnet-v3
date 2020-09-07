@@ -106,7 +106,7 @@ namespace Microsoft.Azure.Cosmos.Routing
 
             try
             {
-                AccountProperties databaseAccount = await getDatabaseAccountFn(defaultEndpoint);
+                AccountProperties databaseAccount = await getDatabaseAccountFn(defaultEndpoint).ConfigureAwait(false);
                 return databaseAccount;
             }
             catch (Exception e)
@@ -130,7 +130,7 @@ namespace Microsoft.Azure.Cosmos.Routing
             {
                 try
                 {
-                    AccountProperties databaseAccount = await getDatabaseAccountFn(LocationHelper.GetLocationEndpoint(defaultEndpoint, locations[index]));
+                    AccountProperties databaseAccount = await getDatabaseAccountFn(LocationHelper.GetLocationEndpoint(defaultEndpoint, locations[index])).ConfigureAwait(false);
                     return databaseAccount;
                 }
                 catch (Exception e)
@@ -212,7 +212,7 @@ namespace Microsoft.Azure.Cosmos.Routing
 
             if (forceRefresh)
             {
-                AccountProperties refreshedDatabaseAccount = await this.RefreshDatabaseAccountInternalAsync();
+                AccountProperties refreshedDatabaseAccount = await this.RefreshDatabaseAccountInternalAsync().ConfigureAwait(false);
 
                 this.locationCache.OnDatabaseAccountRead(refreshedDatabaseAccount);
                 return;
@@ -227,7 +227,7 @@ namespace Microsoft.Azure.Cosmos.Routing
 
             try
             {
-                await this.RefreshLocationPrivateAsync(databaseAccount);
+                await this.RefreshLocationPrivateAsync(databaseAccount).ConfigureAwait(false);
             }
             catch
             {
@@ -255,7 +255,7 @@ namespace Microsoft.Azure.Cosmos.Routing
             {
                 if (databaseAccount == null && !canRefreshInBackground)
                 {
-                    databaseAccount = await this.RefreshDatabaseAccountInternalAsync();
+                    databaseAccount = await this.RefreshDatabaseAccountInternalAsync().ConfigureAwait(false);
 
                     this.locationCache.OnDatabaseAccountRead(databaseAccount);
                 }
@@ -279,13 +279,13 @@ namespace Microsoft.Azure.Cosmos.Routing
 
             try
             {
-                await Task.Delay(this.backgroundRefreshLocationTimeIntervalInMS, this.cancellationTokenSource.Token);
+                await Task.Delay(this.backgroundRefreshLocationTimeIntervalInMS, this.cancellationTokenSource.Token).ConfigureAwait(false);
 
                 DefaultTrace.TraceInformation("StartRefreshLocationTimerAsync() - Invoking refresh");
 
-                AccountProperties databaseAccount = await this.RefreshDatabaseAccountInternalAsync();
+                AccountProperties databaseAccount = await this.RefreshDatabaseAccountInternalAsync().ConfigureAwait(false);
 
-                await this.RefreshLocationPrivateAsync(databaseAccount);
+                await this.RefreshLocationPrivateAsync(databaseAccount).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -316,7 +316,7 @@ namespace Microsoft.Azure.Cosmos.Routing
             return this.databaseAccountCache.GetAsync(
                 string.Empty,
                 null,
-                () => GlobalEndpointManager.GetDatabaseAccountFromAnyLocationsAsync(this.defaultEndpoint, this.connectionPolicy.PreferredLocations, this.GetDatabaseAccountAsync),
+                () => GetDatabaseAccountFromAnyLocationsAsync(this.defaultEndpoint, this.connectionPolicy.PreferredLocations, this.GetDatabaseAccountAsync),
                 this.cancellationTokenSource.Token,
                 forceRefresh: true);
         }

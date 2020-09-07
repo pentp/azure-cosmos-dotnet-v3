@@ -57,7 +57,7 @@ namespace Microsoft.Azure.Cosmos
         {
             if (this.AccountProperties == null)
             {
-                this.AccountProperties = await this.accountPropertiesTaskFunc();
+                this.AccountProperties = await this.accountPropertiesTaskFunc().ConfigureAwait(false);
             }
         }
     }

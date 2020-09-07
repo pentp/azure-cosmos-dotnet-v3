@@ -83,7 +83,7 @@ namespace Microsoft.Azure.Cosmos.Routing
                         retryPolicyInstance.OnBeforeSendRequest(request);
                     }
 
-                    using (DocumentServiceResponse response = await this.storeModel.ProcessMessageAsync(request))
+                    using (DocumentServiceResponse response = await this.storeModel.ProcessMessageAsync(request).ConfigureAwait(false))
                     {
                         return CosmosResource.FromStream<ContainerProperties>(response);
                     }

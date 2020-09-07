@@ -7,10 +7,8 @@ namespace Microsoft.Azure.Cosmos.Common
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.Azure.Documents;
 
     /// <summary>
     /// Cache which supports asynchronous value initialization.
@@ -59,7 +57,7 @@ namespace Microsoft.Azure.Cosmos.Common
                 // Observe all exceptions thrown for existingValue.
                 if (existingValue.IsValueCreated)
                 {
-                    Task unused = existingValue.Value.ContinueWith(c => c.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                    ObserveExceptions(existingValue);
                 }
 
                 return lazyValue;
@@ -106,7 +104,7 @@ namespace Microsoft.Azure.Cosmos.Common
                 {
                     try
                     {
-                        return await initialLazyValue.Value;
+                        return await initialLazyValue.Value.ConfigureAwait(false);
                     }
 
                     // It does not matter to us if this instance of the task throws - the lambda that failed was provided by a different caller.
@@ -120,7 +118,7 @@ namespace Microsoft.Azure.Cosmos.Common
                 // Don't check Task if there's an exception or it's been canceled. Accessing Task.Exception marks it as observed, which we want.
                 else if (initialLazyValue.Value.Exception == null && !initialLazyValue.Value.IsCanceled)
                 {
-                    TValue cachedValue = await initialLazyValue.Value;
+                    TValue cachedValue = await initialLazyValue.Value.ConfigureAwait(false);
 
                     // If not forcing refresh or obsolete value, use cached value.
                     if (!forceRefresh && !this.valueEqualityComparer.Equals(cachedValue, obsoleteValue))
@@ -141,10 +139,7 @@ namespace Microsoft.Azure.Cosmos.Common
             // Task starts running here.
             Task<TValue> generator = actualValue.Value;
 
-            // Even if the current thread goes away, all exceptions will be observed.
-            Task unused = generator.ContinueWith(c => c.Exception, TaskContinuationOptions.OnlyOnFaulted);
-
-            return await generator;
+            return await generator.ConfigureAwait(false);
         }
 
         public void Remove(TKey key)
@@ -153,8 +148,7 @@ namespace Microsoft.Azure.Cosmos.Common
 
             if (this.values.TryRemove(key, out initialLazyValue) && initialLazyValue.IsValueCreated)
             {
-                // Observe all exceptions thrown.
-                Task unused = initialLazyValue.Value.ContinueWith(c => c.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                ObserveExceptions(initialLazyValue);
             }
         }
 
@@ -165,13 +159,12 @@ namespace Microsoft.Azure.Cosmos.Common
             if (this.values.TryGetValue(key, out initialLazyValue) && initialLazyValue.IsValueCreated && initialLazyValue.Value.IsCompleted)
             {
                 // Accessing Exception marks as observed.
-                Exception e = initialLazyValue.Value.Exception;
+                _ = initialLazyValue.Value.Exception;
 
                 // This is a nice trick to do "atomic remove if value not changed".
                 // ConcurrentDictionary inherits from ICollection<KVP<..>>, which allows removal of specific key value pair, instead of removal just by key.
-                ICollection<KeyValuePair<TKey, AsyncLazy<TValue>>> valuesAsCollection = this.values as ICollection<KeyValuePair<TKey, AsyncLazy<TValue>>>;
-                Debug.Assert(valuesAsCollection != null, "Values collection expected to implement ICollection<KVP<TKey, AsyncLazy<TValue>>.");
-                return valuesAsCollection?.Remove(new KeyValuePair<TKey, AsyncLazy<TValue>>(key, initialLazyValue)) ?? false;
+                ICollection<KeyValuePair<TKey, AsyncLazy<TValue>>> valuesAsCollection = this.values;
+                return valuesAsCollection.Remove(new KeyValuePair<TKey, AsyncLazy<TValue>>(key, initialLazyValue));
             }
 
             return false;
@@ -189,7 +182,7 @@ namespace Microsoft.Azure.Cosmos.Common
             {
                 try
                 {
-                    return await initialLazyValue.Value;
+                    return await initialLazyValue.Value.ConfigureAwait(false);
                 }
                 catch
                 {
@@ -209,11 +202,24 @@ namespace Microsoft.Azure.Cosmos.Common
             {
                 if (value.IsValueCreated)
                 {
-                    Task unused = value.Value.ContinueWith(c => c.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                    ObserveExceptions(value);
                 }
             }
 
             oldValues.Clear();
+        }
+
+        private static void ObserveExceptions(AsyncLazy<TValue> value)
+        {
+            Task task = value.Value;
+            if (task.IsCompleted)
+            {
+                _ = task.Exception;
+            }
+            else
+            {
+                _ = task.ContinueWith(c => { _ = c.Exception; }, default, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }
         }
 
         /// <summary>
@@ -226,7 +232,7 @@ namespace Microsoft.Azure.Cosmos.Common
         {
             // Trigger background refresh of cached value.
             // Fire and forget.
-            Task unused = Task.Factory.StartNewOnCurrentTaskSchedulerAsync(async () =>
+            _ = Task.Run(async () =>
             {
                 try
                 {
@@ -248,7 +254,7 @@ namespace Microsoft.Azure.Cosmos.Common
                 {
                     // Observe all exceptions.
                 }
-            }).Unwrap();
+            });
         }
     }
 }

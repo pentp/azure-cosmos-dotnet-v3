@@ -12,8 +12,6 @@ namespace Microsoft.Azure.Cosmos
     using System.Linq;
     using System.Net;
     using System.Net.Http;
-    using System.Net.Http.Headers;
-    using System.Runtime.CompilerServices;
     using System.Security;
     using System.Text;
     using System.Threading;
@@ -701,13 +699,13 @@ namespace Microsoft.Azure.Cosmos
 
         internal virtual async Task<ClientCollectionCache> GetCollectionCacheAsync()
         {
-            await this.EnsureValidClientAsync();
+            await this.EnsureValidClientAsync().ConfigureAwait(false);
             return this.collectionCache;
         }
 
         internal virtual async Task<PartitionKeyRangeCache> GetPartitionKeyRangeCacheAsync()
         {
-            await this.EnsureValidClientAsync();
+            await this.EnsureValidClientAsync().ConfigureAwait(false);
             return this.partitionKeyRangeCache;
         }
 
@@ -743,8 +741,8 @@ namespace Microsoft.Azure.Cosmos
 
         private async Task OpenPrivateInlineAsync(CancellationToken cancellationToken)
         {
-            await this.EnsureValidClientAsync();
-            await TaskHelper.InlineIfPossibleAsync(() => this.OpenPrivateAsync(cancellationToken), this.ResetSessionTokenRetryPolicy.GetRequestPolicy(), cancellationToken);
+            await this.EnsureValidClientAsync().ConfigureAwait(false);
+            await TaskHelper.InlineIfPossibleAsync(() => this.OpenPrivateAsync(cancellationToken), this.ResetSessionTokenRetryPolicy.GetRequestPolicy(), cancellationToken).ConfigureAwait(false);
         }
 
         private async Task OpenPrivateAsync(CancellationToken cancellationToken)
@@ -757,7 +755,7 @@ namespace Microsoft.Azure.Cosmos
             {
                 while (databaseFeedReader.HasMoreResults)
                 {
-                    foreach (Documents.Database database in await databaseFeedReader.ExecuteNextAsync(cancellationToken))
+                    foreach (Documents.Database database in await databaseFeedReader.ExecuteNextAsync(cancellationToken).ConfigureAwait(false))
                     {
                         ResourceFeedReader<DocumentCollection> collectionFeedReader = this.CreateDocumentCollectionFeedReader(
                             database.SelfLink,
@@ -1069,7 +1067,7 @@ namespace Microsoft.Azure.Cosmos
 #pragma warning restore VSTHRD110 // Observe result of async calls
             {
                 DefaultTrace.TraceWarning("initializeTask failed {0}", t.Exception);
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, default, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
 
             this.traceId = Interlocked.Increment(ref DocumentClient.idCounter);
             DefaultTrace.TraceInformation(string.Format(
@@ -1087,7 +1085,7 @@ namespace Microsoft.Azure.Cosmos
         // Always called from under the lock except when called from Intilialize method during construction.
         private async Task GetInitializationTaskAsync(IStoreClientFactory storeClientFactory)
         {
-            await this.InitializeGatewayConfigurationReaderAsync();
+            await this.InitializeGatewayConfigurationReaderAsync().ConfigureAwait(false);
 
             if (this.desiredConsistencyLevel.HasValue)
             {
@@ -1368,11 +1366,7 @@ namespace Microsoft.Azure.Cosmos
                 this.storeClientFactory = null;
             }
 
-            if (this.AddressResolver != null)
-            {
-                this.AddressResolver.Dispose();
-                this.AddressResolver = null;
-            }
+            this.AddressResolver = null;
 
             if (this.httpClient != null)
             {
@@ -1448,20 +1442,17 @@ namespace Microsoft.Azure.Cosmos
 
         internal virtual async Task<IDictionary<string, object>> GetQueryEngineConfigurationAsync()
         {
-            await this.EnsureValidClientAsync();
+            await this.EnsureValidClientAsync().ConfigureAwait(false);
             return this.accountServiceConfiguration.QueryEngineConfiguration;
         }
 
         internal virtual async Task<ConsistencyLevel> GetDefaultConsistencyLevelAsync()
         {
-            await this.EnsureValidClientAsync();
+            await this.EnsureValidClientAsync().ConfigureAwait(false);
             return (ConsistencyLevel)this.accountServiceConfiguration.DefaultConsistencyLevel;
         }
 
-        internal Task<Documents.ConsistencyLevel?> GetDesiredConsistencyLevelAsync()
-        {
-            return Task.FromResult<Documents.ConsistencyLevel?>(this.desiredConsistencyLevel);
-        }
+        internal Documents.ConsistencyLevel? GetDesiredConsistencyLevel() => this.desiredConsistencyLevel;
 
         internal async Task<DocumentServiceResponse> ProcessRequestAsync(
             string verb,
@@ -1485,7 +1476,7 @@ namespace Microsoft.Azure.Cosmos
                 PathsHelper.GetResourcePath(request.ResourceType),
                 verb,
                 request.Headers,
-                AuthorizationTokenType.PrimaryMasterKey);
+                AuthorizationTokenType.PrimaryMasterKey).ConfigureAwait(false);
 
             // Unit-test hook
             if (testAuthorization != null)
@@ -1497,7 +1488,7 @@ namespace Microsoft.Azure.Cosmos
 
             try
             {
-                return await this.ProcessRequestAsync(request, retryPolicyInstance, cancellationToken);
+                return await this.ProcessRequestAsync(request, retryPolicyInstance, cancellationToken).ConfigureAwait(false);
             }
             catch (DocumentClientException dce)
             {
@@ -1539,7 +1530,7 @@ namespace Microsoft.Azure.Cosmos
             IDocumentClientRetryPolicy retryPolicyInstance,
             CancellationToken cancellationToken)
         {
-            await this.EnsureValidClientAsync();
+            await this.EnsureValidClientAsync().ConfigureAwait(false);
 
             if (retryPolicyInstance != null)
             {
@@ -1549,7 +1540,7 @@ namespace Microsoft.Azure.Cosmos
             using (new ActivityScope(Guid.NewGuid()))
             {
                 IStoreModel storeProxy = this.GetStoreProxy(request);
-                return await storeProxy.ProcessMessageAsync(request, cancellationToken);
+                return await storeProxy.ProcessMessageAsync(request, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1607,7 +1598,7 @@ namespace Microsoft.Azure.Cosmos
 
             try
             {
-                await initTask;
+                await initTask.ConfigureAwait(false);
                 this.isSuccessfullyInitialized = true;
                 return;
             }
@@ -1627,7 +1618,7 @@ namespace Microsoft.Azure.Cosmos
                 initTask = this.initializeTask;
             }
 
-            await initTask;
+            await initTask.ConfigureAwait(false);
             this.isSuccessfullyInitialized = true;
         }
 
@@ -1767,24 +1758,16 @@ namespace Microsoft.Azure.Cosmos
             {
                 return await this.ReadDatabaseAsync(UriFactory.CreateDatabaseUri(database.Id));
             }
-            catch (DocumentClientException dce)
+            catch (DocumentClientException dce) when (dce.StatusCode == HttpStatusCode.NotFound)
             {
-                if (dce.StatusCode != HttpStatusCode.NotFound)
-                {
-                    throw;
-                }
             }
 
             try
             {
                 return await this.CreateDatabaseAsync(database, options);
             }
-            catch (DocumentClientException ex)
+            catch (DocumentClientException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
-                if (ex.StatusCode != HttpStatusCode.Conflict)
-                {
-                    throw;
-                }
             }
 
             // This second Read is to handle the race condition when 2 or more threads have Read the database and only one succeeds with Create
@@ -2120,24 +2103,16 @@ namespace Microsoft.Azure.Cosmos
             {
                 return await this.ReadDocumentCollectionAsync(UriFactory.CreateDocumentCollectionUri(database.Id, documentCollection.Id), null);
             }
-            catch (DocumentClientException dce)
+            catch (DocumentClientException dce) when (dce.StatusCode == HttpStatusCode.NotFound)
             {
-                if (dce.StatusCode != HttpStatusCode.NotFound)
-                {
-                    throw;
-                }
             }
 
             try
             {
                 return await this.CreateDocumentCollectionAsync(databaseLink, documentCollection, options);
             }
-            catch (DocumentClientException ex)
+            catch (DocumentClientException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
-                if (ex.StatusCode != HttpStatusCode.Conflict)
-                {
-                    throw;
-                }
             }
 
             // This second Read is to handle the race condition when 2 or more threads have Read the collection and only one succeeds with Create
@@ -6926,11 +6901,11 @@ namespace Microsoft.Azure.Cosmos
 
             this.accountServiceConfiguration = new CosmosAccountServiceConfiguration(accountReader.InitializeReaderAsync);
 
-            await this.accountServiceConfiguration.InitializeAsync();
+            await this.accountServiceConfiguration.InitializeAsync().ConfigureAwait(false);
             AccountProperties accountProperties = this.accountServiceConfiguration.AccountProperties;
             this.UseMultipleWriteLocations = this.ConnectionPolicy.UseMultipleWriteLocations && accountProperties.EnableMultipleWriteLocations;
 
-            await this.GlobalEndpointManager.RefreshLocationAsync(accountProperties);
+            await this.GlobalEndpointManager.RefreshLocationAsync(accountProperties).ConfigureAwait(false);
         }
 
         internal void CaptureSessionToken(DocumentServiceRequest request, DocumentServiceResponse response)
@@ -7258,28 +7233,6 @@ namespace Microsoft.Azure.Cosmos
             public IDocumentClientRetryPolicy GetRequestPolicy()
             {
                 return new RenameCollectionAwareClientRetryPolicy(this.sessionContainer, this.collectionCache, this.retryPolicy.GetRequestPolicy());
-            }
-        }
-
-        private class HttpRequestMessageHandler : DelegatingHandler
-        {
-            private readonly EventHandler<SendingRequestEventArgs> sendingRequest;
-            private readonly EventHandler<ReceivedResponseEventArgs> receivedResponse;
-
-            public HttpRequestMessageHandler(EventHandler<SendingRequestEventArgs> sendingRequest, EventHandler<ReceivedResponseEventArgs> receivedResponse, HttpMessageHandler innerHandler)
-            {
-                this.sendingRequest = sendingRequest;
-                this.receivedResponse = receivedResponse;
-
-                this.InnerHandler = innerHandler ?? new HttpClientHandler();
-            }
-
-            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            {
-                this.sendingRequest?.Invoke(this, new SendingRequestEventArgs(request));
-                HttpResponseMessage response = await base.SendAsync(request, cancellationToken);
-                this.receivedResponse?.Invoke(this, new ReceivedResponseEventArgs(request, response));
-                return response;
             }
         }
 

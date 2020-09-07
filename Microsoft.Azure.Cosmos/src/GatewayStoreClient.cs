@@ -9,7 +9,6 @@ namespace Microsoft.Azure.Cosmos
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.IO;
-    using System.Linq;
     using System.Net.Http;
     using System.Net.Http.Headers;
     using System.Text;
@@ -42,9 +41,9 @@ namespace Microsoft.Azure.Cosmos
            Uri physicalAddress,
            CancellationToken cancellationToken)
         {
-            using (HttpResponseMessage responseMessage = await this.InvokeClientAsync(request, resourceType, physicalAddress, cancellationToken))
+            using (HttpResponseMessage responseMessage = await this.InvokeClientAsync(request, resourceType, physicalAddress, cancellationToken).ConfigureAwait(false))
             {
-                return await GatewayStoreClient.ParseResponseAsync(responseMessage, request.SerializerSettings ?? this.SerializerSettings, request);
+                return await ParseResponseAsync(responseMessage, request.SerializerSettings ?? this.SerializerSettings, request).ConfigureAwait(false);
             }
         }
 
@@ -61,13 +60,13 @@ namespace Microsoft.Azure.Cosmos
 
         internal override async Task<StoreResponse> InvokeStoreAsync(Uri baseAddress, ResourceOperation resourceOperation, DocumentServiceRequest request)
         {
-            Uri physicalAddress = GatewayStoreClient.IsFeedRequest(request.OperationType) ?
+            Uri physicalAddress = IsFeedRequest(request.OperationType) ?
                 HttpTransportClient.GetResourceFeedUri(resourceOperation.resourceType, baseAddress, request) :
                 HttpTransportClient.GetResourceEntryUri(resourceOperation.resourceType, baseAddress, request);
 
-            using (HttpResponseMessage responseMessage = await this.InvokeClientAsync(request, resourceOperation.resourceType, physicalAddress, default(CancellationToken)))
+            using (HttpResponseMessage responseMessage = await this.InvokeClientAsync(request, resourceOperation.resourceType, physicalAddress, default(CancellationToken)).ConfigureAwait(false))
             {
-                return await HttpTransportClient.ProcessHttpResponse(request.ResourceAddress, string.Empty, responseMessage, physicalAddress, request);
+                return await HttpTransportClient.ProcessHttpResponse(request.ResourceAddress, string.Empty, responseMessage, physicalAddress, request).ConfigureAwait(false);
             }
         }
 
@@ -89,22 +88,11 @@ namespace Microsoft.Azure.Cosmos
             using (responseMessage)
             {
                 IClientSideRequestStatistics requestStatistics = request?.RequestContext?.ClientRequestStatistics;
-                if ((int)responseMessage.StatusCode < 400)
+                if ((int)responseMessage.StatusCode < 400
+                    || (request != null && request.IsValidStatusCodeForExceptionlessRetry((int)responseMessage.StatusCode)))
                 {
-                    INameValueCollection headers = GatewayStoreClient.ExtractResponseHeaders(responseMessage);
-                    Stream contentStream = await GatewayStoreClient.BufferContentIfAvailableAsync(responseMessage);
-                    return new DocumentServiceResponse(
-                        body: contentStream,
-                        headers: headers,
-                        statusCode: responseMessage.StatusCode,
-                        clientSideRequestStatistics: requestStatistics,
-                        serializerSettings: serializerSettings);
-                }
-                else if (request != null
-                    && request.IsValidStatusCodeForExceptionlessRetry((int)responseMessage.StatusCode))
-                {
-                    INameValueCollection headers = GatewayStoreClient.ExtractResponseHeaders(responseMessage);
-                    Stream contentStream = await GatewayStoreClient.BufferContentIfAvailableAsync(responseMessage);
+                    INameValueCollection headers = ExtractResponseHeaders(responseMessage);
+                    Stream contentStream = await BufferContentIfAvailableAsync(responseMessage).ConfigureAwait(false);
                     return new DocumentServiceResponse(
                         body: contentStream,
                         headers: headers,
@@ -114,7 +102,7 @@ namespace Microsoft.Azure.Cosmos
                 }
                 else
                 {
-                    throw await GatewayStoreClient.CreateDocumentClientExceptionAsync(responseMessage, requestStatistics);
+                    throw await CreateDocumentClientExceptionAsync(responseMessage, requestStatistics).ConfigureAwait(false);
                 }
             }
         }
@@ -183,7 +171,7 @@ namespace Microsoft.Azure.Cosmos
             // If service rejects the initial payload like header is to large it will return an HTML error instead of JSON.
             if (string.Equals(responseMessage.Content?.Headers?.ContentType?.MediaType, "application/json", StringComparison.OrdinalIgnoreCase))
             {
-                Stream readStream = await responseMessage.Content.ReadAsStreamAsync();
+                Stream readStream = await responseMessage.Content.ReadAsStreamAsync().ConfigureAwait(false);
                 Error error = Documents.Resource.LoadFrom<Error>(readStream);
                 return new DocumentClientException(
                     error,
@@ -198,7 +186,7 @@ namespace Microsoft.Azure.Cosmos
             else
             {
                 StringBuilder context = new StringBuilder();
-                context.AppendLine(await responseMessage.Content.ReadAsStringAsync());
+                context.AppendLine(await responseMessage.Content.ReadAsStringAsync().ConfigureAwait(false));
 
                 HttpRequestMessage requestMessage = responseMessage.RequestMessage;
                 if (requestMessage != null)
@@ -215,7 +203,6 @@ namespace Microsoft.Azure.Cosmos
                     }
                 }
 
-                String message = await responseMessage.Content.ReadAsStringAsync();
                 return new DocumentClientException(
                     message: context.ToString(),
                     innerException: null,
@@ -267,7 +254,7 @@ namespace Microsoft.Azure.Cosmos
             }
 
             MemoryStream bufferedStream = new MemoryStream();
-            await responseMessage.Content.CopyToAsync(bufferedStream);
+            await responseMessage.Content.CopyToAsync(bufferedStream).ConfigureAwait(false);
             bufferedStream.Position = 0;
             return bufferedStream;
         }
@@ -318,7 +305,7 @@ namespace Microsoft.Azure.Cosmos
             // HttpRequestMessage -> StreamContent -> MemoryStream all get disposed, the original stream will be left open.
             if (request.Body != null)
             {
-                await request.EnsureBufferedBodyAsync();
+                await request.EnsureBufferedBodyAsync().ConfigureAwait(false);
                 MemoryStream clonedStream = new MemoryStream();
                 // WriteTo doesn't use and update Position of source stream. No point in setting/restoring it.
                 request.CloneableBody.WriteTo(clonedStream);
@@ -331,7 +318,7 @@ namespace Microsoft.Azure.Cosmos
             {
                 foreach (string key in request.Headers)
                 {
-                    if (GatewayStoreClient.IsAllowedRequestHeader(key))
+                    if (IsAllowedRequestHeader(key))
                     {
                         if (key.Equals(HttpConstants.HttpHeaders.ContentType, StringComparison.OrdinalIgnoreCase))
                         {
@@ -365,7 +352,7 @@ namespace Microsoft.Azure.Cosmos
             {
                 diagnosticsContext = cosmosClientSideRequestStatistics.DiagnosticsContext;
             }
-            
+
             return this.httpClient.SendHttpAsync(
                 () => this.PrepareRequestMessageAsync(request, physicalAddress),
                 resourceType,

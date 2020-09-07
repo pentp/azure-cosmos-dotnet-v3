@@ -58,7 +58,7 @@ namespace Microsoft.Azure.Cosmos
             try
             {
                 Uri physicalAddress = GatewayStoreClient.IsFeedRequest(request.OperationType) ? this.GetFeedUri(request) : this.GetEntityUri(request);
-                response = await this.gatewayStoreClient.InvokeAsync(request, request.ResourceType, physicalAddress, cancellationToken);
+                response = await this.gatewayStoreClient.InvokeAsync(request, request.ResourceType, physicalAddress, cancellationToken).ConfigureAwait(false);
             }
             catch (DocumentClientException exception)
             {
@@ -84,9 +84,9 @@ namespace Microsoft.Azure.Cosmos
             using (HttpResponseMessage responseMessage = await this.gatewayStoreClient.SendHttpAsync(
                 requestMessage,
                 ResourceType.DatabaseAccount,
-                cancellationToken))
+                cancellationToken).ConfigureAwait(false))
             {
-                using (DocumentServiceResponse documentServiceResponse = await ClientExtensions.ParseResponseAsync(responseMessage))
+                using (DocumentServiceResponse documentServiceResponse = await GatewayStoreClient.ParseResponseAsync(responseMessage).ConfigureAwait(false))
                 {
                     databaseAccount = CosmosResource.FromStream<AccountProperties>(documentServiceResponse);
                 }
@@ -145,7 +145,6 @@ namespace Microsoft.Azure.Cosmos
         public void Dispose()
         {
             this.Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         private void CaptureSessionToken(

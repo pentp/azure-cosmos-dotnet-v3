@@ -163,7 +163,7 @@ namespace Microsoft.Azure.Cosmos.Query
             cancellationToken.ThrowIfCancellationRequested();
             // $ISSUE-felixfan-2016-07-13: We should probably get PartitionedQueryExecutionInfo from Gateway in GatewayMode
 
-            QueryPartitionProvider queryPartitionProvider = await this.Client.GetQueryPartitionProviderAsync(cancellationToken);
+            QueryPartitionProvider queryPartitionProvider = await this.Client.GetQueryPartitionProviderAsync(cancellationToken).ConfigureAwait(false);
             TryCatch<PartitionedQueryExecutionInfo> tryGetPartitionedQueryExecutionInfo = queryPartitionProvider.TryGetPartitionedQueryExecutionInfo(
                 this.QuerySpec,
                 partitionKeyDefinition,
@@ -186,7 +186,7 @@ namespace Microsoft.Azure.Cosmos.Query
                 throw new InvalidOperationException(RMResources.DocumentQueryExecutionContextIsDone);
             }
 
-            this.lastPage = await this.ExecuteInternalAsync(cancellationToken);
+            this.lastPage = await this.ExecuteInternalAsync(cancellationToken).ConfigureAwait(false);
             return this.lastPage;
         }
 
@@ -201,8 +201,8 @@ namespace Microsoft.Azure.Cosmos.Query
         {
             INameValueCollection requestHeaders = new DictionaryNameValueCollection();
 
-            Cosmos.ConsistencyLevel defaultConsistencyLevel = (Cosmos.ConsistencyLevel)await this.Client.GetDefaultConsistencyLevelAsync();
-            Cosmos.ConsistencyLevel? desiredConsistencyLevel = (Cosmos.ConsistencyLevel?)await this.Client.GetDesiredConsistencyLevelAsync();
+            Cosmos.ConsistencyLevel defaultConsistencyLevel = (Cosmos.ConsistencyLevel)await this.Client.GetDefaultConsistencyLevelAsync().ConfigureAwait(false);
+            Cosmos.ConsistencyLevel? desiredConsistencyLevel = (Cosmos.ConsistencyLevel?)this.Client.GetDesiredConsistencyLevel();
             if (!string.IsNullOrEmpty(feedOptions.SessionToken) && !ReplicatedResourceClient.IsReadingFromMaster(this.ResourceTypeEnum, OperationType.ReadFeed))
             {
                 if (defaultConsistencyLevel == Cosmos.ConsistencyLevel.Session || (desiredConsistencyLevel.HasValue && desiredConsistencyLevel.Value == Cosmos.ConsistencyLevel.Session))
@@ -263,7 +263,7 @@ namespace Microsoft.Azure.Cosmos.Query
 
             if (this.feedOptions.ConsistencyLevel.HasValue)
             {
-                await this.Client.EnsureValidOverwriteAsync((Documents.ConsistencyLevel)feedOptions.ConsistencyLevel.Value);
+                await this.Client.EnsureValidOverwriteAsync((Documents.ConsistencyLevel)feedOptions.ConsistencyLevel.Value).ConfigureAwait(false);
                 requestHeaders.Set(HttpConstants.HttpHeaders.ConsistencyLevel, this.feedOptions.ConsistencyLevel.Value.ToString());
             }
             else if (desiredConsistencyLevel.HasValue)
@@ -353,29 +353,29 @@ namespace Microsoft.Azure.Cosmos.Query
             DocumentServiceResponse documentServiceResponse = await this.ExecuteQueryRequestInternalAsync(
                 request,
                 retryPolicyInstance,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             return this.GetFeedResponse(request, documentServiceResponse);
         }
 
-        public async Task<DocumentFeedResponse<CosmosElement>> ExecuteRequestAsync(
+        public Task<DocumentFeedResponse<CosmosElement>> ExecuteRequestAsync(
             DocumentServiceRequest request,
             IDocumentClientRetryPolicy retryPolicyInstance,
             CancellationToken cancellationToken)
         {
-            return await (this.ShouldExecuteQueryRequest ?
+            return this.ShouldExecuteQueryRequest ?
                 this.ExecuteQueryRequestAsync(request, retryPolicyInstance, cancellationToken) :
-                this.ExecuteReadFeedRequestAsync(request, retryPolicyInstance, cancellationToken));
+                this.ExecuteReadFeedRequestAsync(request, retryPolicyInstance, cancellationToken);
         }
 
-        public async Task<DocumentFeedResponse<T>> ExecuteRequestAsync<T>(
+        public Task<DocumentFeedResponse<T>> ExecuteRequestAsync<T>(
             DocumentServiceRequest request,
             IDocumentClientRetryPolicy retryPolicyInstance,
             CancellationToken cancellationToken)
         {
-            return await (this.ShouldExecuteQueryRequest ?
+            return this.ShouldExecuteQueryRequest ?
                 this.ExecuteQueryRequestAsync<T>(request, retryPolicyInstance, cancellationToken) :
-                this.ExecuteReadFeedRequestAsync<T>(request, retryPolicyInstance, cancellationToken));
+                this.ExecuteReadFeedRequestAsync<T>(request, retryPolicyInstance, cancellationToken);
         }
 
         public async Task<DocumentFeedResponse<CosmosElement>> ExecuteQueryRequestAsync(
@@ -383,7 +383,7 @@ namespace Microsoft.Azure.Cosmos.Query
             IDocumentClientRetryPolicy retryPolicyInstance,
             CancellationToken cancellationToken)
         {
-            return this.GetFeedResponse(request, await this.ExecuteQueryRequestInternalAsync(request, retryPolicyInstance, cancellationToken));
+            return this.GetFeedResponse(request, await this.ExecuteQueryRequestInternalAsync(request, retryPolicyInstance, cancellationToken).ConfigureAwait(false));
         }
 
         public async Task<DocumentFeedResponse<T>> ExecuteQueryRequestAsync<T>(
@@ -391,7 +391,7 @@ namespace Microsoft.Azure.Cosmos.Query
             IDocumentClientRetryPolicy retryPolicyInstance,
             CancellationToken cancellationToken)
         {
-            return this.GetFeedResponse<T>(await this.ExecuteQueryRequestInternalAsync(request, retryPolicyInstance, cancellationToken));
+            return this.GetFeedResponse<T>(await this.ExecuteQueryRequestInternalAsync(request, retryPolicyInstance, cancellationToken).ConfigureAwait(false));
         }
 
         public async Task<DocumentFeedResponse<CosmosElement>> ExecuteReadFeedRequestAsync(
@@ -399,7 +399,7 @@ namespace Microsoft.Azure.Cosmos.Query
             IDocumentClientRetryPolicy retryPolicyInstance,
             CancellationToken cancellationToken)
         {
-            return this.GetFeedResponse(request, await this.Client.ReadFeedAsync(request, retryPolicyInstance, cancellationToken));
+            return this.GetFeedResponse(request, await this.Client.ReadFeedAsync(request, retryPolicyInstance, cancellationToken).ConfigureAwait(false));
         }
 
         public async Task<DocumentFeedResponse<T>> ExecuteReadFeedRequestAsync<T>(
@@ -407,7 +407,7 @@ namespace Microsoft.Azure.Cosmos.Query
             IDocumentClientRetryPolicy retryPolicyInstance,
             CancellationToken cancellationToken)
         {
-            return this.GetFeedResponse<T>(await this.Client.ReadFeedAsync(request, retryPolicyInstance, cancellationToken));
+            return this.GetFeedResponse<T>(await this.Client.ReadFeedAsync(request, retryPolicyInstance, cancellationToken).ConfigureAwait(false));
         }
 
         public void PopulatePartitionKeyRangeInfo(DocumentServiceRequest request, PartitionKeyRange range, string collectionRid)
@@ -430,9 +430,9 @@ namespace Microsoft.Azure.Cosmos.Query
 
         public async Task<PartitionKeyRange> GetTargetPartitionKeyRangeByIdAsync(string collectionResourceId, string partitionKeyRangeId)
         {
-            IRoutingMapProvider routingMapProvider = await this.Client.GetRoutingMapProviderAsync();
+            IRoutingMapProvider routingMapProvider = await this.Client.GetRoutingMapProviderAsync().ConfigureAwait(false);
 
-            PartitionKeyRange range = await routingMapProvider.TryGetPartitionKeyRangeByIdAsync(collectionResourceId, partitionKeyRangeId);
+            PartitionKeyRange range = await routingMapProvider.TryGetPartitionKeyRangeByIdAsync(collectionResourceId, partitionKeyRangeId).ConfigureAwait(false);
             if (range == null && PathsHelper.IsNameBased(this.ResourceLink))
             {
                 // Refresh the cache and don't try to reresolve collection as it is not clear what already
@@ -440,7 +440,7 @@ namespace Microsoft.Azure.Cosmos.Query
                 // Return NotFoundException this time. Next query will succeed.
                 // This can only happen if collection is deleted/created with same name and client was not restarted
                 // inbetween.
-                CollectionCache collectionCache = await this.Client.GetCollectionCacheAsync();
+                CollectionCache collectionCache = await this.Client.GetCollectionCacheAsync().ConfigureAwait(false);
                 collectionCache.Refresh(this.ResourceLink);
             }
 
@@ -473,9 +473,9 @@ namespace Microsoft.Azure.Cosmos.Query
                 throw new ArgumentNullException(nameof(providedRanges));
             }
 
-            IRoutingMapProvider routingMapProvider = await this.Client.GetRoutingMapProviderAsync();
+            IRoutingMapProvider routingMapProvider = await this.Client.GetRoutingMapProviderAsync().ConfigureAwait(false);
 
-            List<PartitionKeyRange> ranges = await routingMapProvider.TryGetOverlappingRangesAsync(collectionResourceId, providedRanges);
+            List<PartitionKeyRange> ranges = await routingMapProvider.TryGetOverlappingRangesAsync(collectionResourceId, providedRanges).ConfigureAwait(false);
             if (ranges == null && PathsHelper.IsNameBased(this.ResourceLink))
             {
                 // Refresh the cache and don't try to re-resolve collection as it is not clear what already
@@ -483,7 +483,7 @@ namespace Microsoft.Azure.Cosmos.Query
                 // Return NotFoundException this time. Next query will succeed.
                 // This can only happen if collection is deleted/created with same name and client was not restarted
                 // in between.
-                CollectionCache collectionCache = await this.Client.GetCollectionCacheAsync();
+                CollectionCache collectionCache = await this.Client.GetCollectionCacheAsync().ConfigureAwait(false);
                 collectionCache.Refresh(this.ResourceLink);
             }
 
@@ -501,8 +501,8 @@ namespace Microsoft.Azure.Cosmos.Query
 
         protected async Task<List<PartitionKeyRange>> GetReplacementRangesAsync(PartitionKeyRange targetRange, string collectionRid)
         {
-            IRoutingMapProvider routingMapProvider = await this.Client.GetRoutingMapProviderAsync();
-            List<PartitionKeyRange> replacementRanges = (await routingMapProvider.TryGetOverlappingRangesAsync(collectionRid, targetRange.ToRange(), true)).ToList();
+            IRoutingMapProvider routingMapProvider = await this.Client.GetRoutingMapProviderAsync().ConfigureAwait(false);
+            List<PartitionKeyRange> replacementRanges = (await routingMapProvider.TryGetOverlappingRangesAsync(collectionRid, targetRange.ToRange(), true).ConfigureAwait(false)).ToList();
             string replaceMinInclusive = replacementRanges.First().MinInclusive;
             string replaceMaxExclusive = replacementRanges.Last().MaxExclusive;
             if (!replaceMinInclusive.Equals(targetRange.MinInclusive, StringComparison.Ordinal) || !replaceMaxExclusive.Equals(targetRange.MaxExclusive, StringComparison.Ordinal))
@@ -531,7 +531,7 @@ namespace Microsoft.Azure.Cosmos.Query
         {
             try
             {
-                return await this.Client.ExecuteQueryAsync(request, retryPolicyInstance, cancellationToken);
+                return await this.Client.ExecuteQueryAsync(request, retryPolicyInstance, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

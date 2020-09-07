@@ -10,10 +10,8 @@ namespace Microsoft.Azure.Cosmos
     using System.Net;
     using System.Net.Http;
     using System.Net.Http.Headers;
-    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.Azure.Cosmos.Resource.CosmosExceptions;
     using Microsoft.Azure.Documents;
     using Microsoft.Azure.Documents.Collections;
 
@@ -217,7 +215,7 @@ namespace Microsoft.Azure.Cosmos
             {
                 using (diagnosticsContext.CreateScope(nameof(CosmosHttpClientCore.SendHttpAsync)))
                 {
-                    using (requestMessage = await createRequestMessageAsync())
+                    using (requestMessage = await createRequestMessageAsync().ConfigureAwait(false))
                     {
                         DateTime sendTimeUtc = DateTime.UtcNow;
                         Guid localGuid = Guid.NewGuid(); // For correlating HttpRequest and HttpResponse Traces
@@ -233,7 +231,7 @@ namespace Microsoft.Azure.Cosmos
                         HttpResponseMessage responseMessage = await this.httpClient.SendAsync(
                                 requestMessage,
                                 httpCompletionOption,
-                                cancellationToken);
+                                cancellationToken).ConfigureAwait(false);
 
                         DateTime receivedTimeUtc = DateTime.UtcNow;
                         TimeSpan durationTimeSpan = receivedTimeUtc - sendTimeUtc;
@@ -307,7 +305,7 @@ namespace Microsoft.Azure.Cosmos
                 CancellationToken cancellationToken)
             {
                 this.sendingRequest?.Invoke(this, new SendingRequestEventArgs(request));
-                HttpResponseMessage response = await base.SendAsync(request, cancellationToken);
+                HttpResponseMessage response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 this.receivedResponse?.Invoke(this, new ReceivedResponseEventArgs(request, response));
                 return response;
             }

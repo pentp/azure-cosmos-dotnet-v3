@@ -37,10 +37,10 @@ namespace Microsoft.Azure.Cosmos.ChangeFeed.FeedManagement
             this.processorCancellation = CancellationTokenSource.CreateLinkedTokenSource(shutdownToken);
 
             Task processorTask = this.processor.RunAsync(this.processorCancellation.Token);
-            processorTask.ContinueWith(_ => this.renewerCancellation.Cancel()).LogException();
+            processorTask.ContinueWith(_ => this.renewerCancellation.Cancel(), TaskScheduler.Default).LogException();
 
             Task renewerTask = this.renewer.RunAsync(this.renewerCancellation.Token);
-            renewerTask.ContinueWith(_ => this.processorCancellation.Cancel()).LogException();
+            renewerTask.ContinueWith(_ => this.processorCancellation.Cancel(), TaskScheduler.Default).LogException();
 
             ChangeFeedObserverCloseReason closeReason = shutdownToken.IsCancellationRequested ?
                 ChangeFeedObserverCloseReason.Shutdown :

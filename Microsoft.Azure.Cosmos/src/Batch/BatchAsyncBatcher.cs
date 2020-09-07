@@ -134,13 +134,13 @@ namespace Microsoft.Azure.Cosmos
                 try
                 {
                     // HybridRow serialization might leave some pending operations out of the batch
-                    Tuple<PartitionKeyRangeServerBatchRequest, ArraySegment<ItemBatchOperation>> createRequestResponse = await this.CreateServerRequestAsync(cancellationToken);
+                    Tuple<PartitionKeyRangeServerBatchRequest, ArraySegment<ItemBatchOperation>> createRequestResponse = await this.CreateServerRequestAsync(cancellationToken).ConfigureAwait(false);
                     serverRequest = createRequestResponse.Item1;
                     pendingOperations = createRequestResponse.Item2;
                     // Any overflow goes to a new batch
                     foreach (ItemBatchOperation operation in pendingOperations)
                     {
-                        await this.retrier(operation, cancellationToken);
+                        await this.retrier(operation, cancellationToken).ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex)
@@ -158,7 +158,7 @@ namespace Microsoft.Azure.Cosmos
                 {
                     Stopwatch stopwatch = Stopwatch.StartNew();
 
-                    PartitionKeyRangeBatchExecutionResult result = await this.executor(serverRequest, cancellationToken);
+                    PartitionKeyRangeBatchExecutionResult result = await this.executor(serverRequest, cancellationToken).ConfigureAwait(false);
 
                     int numThrottle = result.ServerResponse.Any(r => r.StatusCode == (System.Net.HttpStatusCode)StatusCodes.TooManyRequests) ? 1 : 0;
                     partitionMetric.Add(
@@ -186,10 +186,10 @@ namespace Microsoft.Azure.Cosmos
                             
                             if (!response.IsSuccessStatusCode)
                             {
-                                Documents.ShouldRetryResult shouldRetry = await itemBatchOperation.Context.ShouldRetryAsync(response, cancellationToken);
+                                Documents.ShouldRetryResult shouldRetry = await itemBatchOperation.Context.ShouldRetryAsync(response, cancellationToken).ConfigureAwait(false);
                                 if (shouldRetry.ShouldRetry)
                                 {
-                                    await this.retrier(itemBatchOperation, cancellationToken);
+                                    await this.retrier(itemBatchOperation, cancellationToken).ConfigureAwait(false);
                                     continue;
                                 }
                             }
@@ -221,20 +221,20 @@ namespace Microsoft.Azure.Cosmos
             }
         }
 
-        internal virtual async Task<Tuple<PartitionKeyRangeServerBatchRequest, ArraySegment<ItemBatchOperation>>> CreateServerRequestAsync(CancellationToken cancellationToken)
+        internal virtual Task<Tuple<PartitionKeyRangeServerBatchRequest, ArraySegment<ItemBatchOperation>>> CreateServerRequestAsync(CancellationToken cancellationToken)
         {
             // All operations should be for the same PKRange
             string partitionKeyRangeId = this.batchOperations[0].Context.PartitionKeyRangeId;
 
             ArraySegment<ItemBatchOperation> operationsArraySegment = new ArraySegment<ItemBatchOperation>(this.batchOperations.ToArray());
-            return await PartitionKeyRangeServerBatchRequest.CreateAsync(
+            return PartitionKeyRangeServerBatchRequest.CreateAsync(
                   partitionKeyRangeId,
                   operationsArraySegment,
                   this.maxBatchByteSize,
                   this.maxBatchOperationCount,
                   ensureContinuousOperationIndexes: false,
                   serializerCore: this.serializerCore,
-                  cancellationToken: cancellationToken).ConfigureAwait(false);
+                  cancellationToken: cancellationToken);
         }
     }
 

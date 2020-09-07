@@ -10,8 +10,7 @@ namespace Microsoft.Azure.Cosmos.Timers
 #nullable enable
     internal sealed class TimerWheelTimerCore : TimerWheelTimer
     {
-        private static object completedObject = new object();
-        private readonly TaskCompletionSource<object> taskCompletionSource;
+        private readonly TaskCompletionSource<object?> taskCompletionSource;
         private readonly Object memberLock;
         private readonly TimerWheel timerWheel;
         private bool timerStarted = false;
@@ -27,7 +26,7 @@ namespace Microsoft.Azure.Cosmos.Timers
 
             this.timerWheel = timerWheel ?? throw new ArgumentNullException(nameof(timerWheel));
             this.Timeout = timeoutPeriod;
-            this.taskCompletionSource = new TaskCompletionSource<object>();
+            this.taskCompletionSource = new TaskCompletionSource<object?>();
             this.memberLock = new Object();
         }
 
@@ -45,8 +44,8 @@ namespace Microsoft.Azure.Cosmos.Timers
 
                 this.timerWheel.SubscribeForTimeouts(this);
                 this.timerStarted = true;
-                return this.taskCompletionSource.Task;
             }
+            return this.taskCompletionSource.Task;
         }
 
         public override bool CancelTimer()
@@ -56,7 +55,7 @@ namespace Microsoft.Azure.Cosmos.Timers
 
         public override bool FireTimeout()
         {
-            return this.taskCompletionSource.TrySetResult(TimerWheelTimerCore.completedObject);
+            return this.taskCompletionSource.TrySetResult(null);
         }
     }
 }

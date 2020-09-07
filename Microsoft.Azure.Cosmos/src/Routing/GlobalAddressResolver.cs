@@ -8,7 +8,6 @@ namespace Microsoft.Azure.Cosmos.Routing
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.Cosmos.Common;
@@ -20,7 +19,7 @@ namespace Microsoft.Azure.Cosmos.Routing
     /// AddressCache implementation for client SDK. Supports cross region address routing based on
     /// avaialbility and preference list.
     /// </summary>
-    internal sealed class GlobalAddressResolver : IAddressResolver, IDisposable
+    internal sealed class GlobalAddressResolver : IAddressResolver
     {
         private const int MaxBackupReadRegions = 3;
 
@@ -151,14 +150,6 @@ namespace Microsoft.Azure.Cosmos.Routing
             Uri endpoint = this.endpointManager.ResolveServiceEndpoint(request);
 
             return this.GetOrAddEndpoint(endpoint).AddressResolver;
-        }
-
-        public void Dispose()
-        {
-            foreach (EndpointCache endpointCache in this.addressCacheByEndpoint.Values)
-            {
-                endpointCache.AddressCache.Dispose();
-            }
         }
 
         private EndpointCache GetOrAddEndpoint(Uri endpoint)

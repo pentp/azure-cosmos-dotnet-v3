@@ -235,22 +235,25 @@ namespace Microsoft.Azure.Cosmos.Common
                 cancellationToken);
         }
 
-        internal virtual async Task<ContainerProperties> ResolveByNameAsync(
+        internal virtual Task<ContainerProperties> ResolveByNameAsync(
             string apiVersion,
             string resourceAddress,
             CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return Task.FromCanceled<ContainerProperties>(cancellationToken);
+            }
 
             string resourceFullName = PathsHelper.GetCollectionPath(resourceAddress);
             InternalCache cache = this.GetCache(apiVersion);
-            return await cache.collectionInfoByName.GetAsync(
+            return cache.collectionInfoByName.GetAsync(
                 resourceFullName,
                 null,
                 async () =>
                 {
                     DateTime currentTime = DateTime.UtcNow;
-                    ContainerProperties collection = await this.GetByNameAsync(apiVersion, resourceFullName, cancellationToken);
+                    ContainerProperties collection = await this.GetByNameAsync(apiVersion, resourceFullName, cancellationToken).ConfigureAwait(false);
                     cache.collectionInfoById.Set(collection.ResourceId, collection);
                     cache.collectionInfoByNameLastRefreshTime.AddOrUpdate(resourceFullName, currentTime,
                         (string currentKey, DateTime currentValue) => currentTime);

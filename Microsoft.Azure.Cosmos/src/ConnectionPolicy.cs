@@ -18,9 +18,6 @@ namespace Microsoft.Azure.Cosmos
     {
         internal UserAgentContainer UserAgentContainer;
         private const int defaultRequestTimeout = 10;
-        // defaultMediaRequestTimeout is based upon the blob client timeout and the retry policy.
-        private const int defaultMediaRequestTimeout = 300;
-        private const int defaultMaxConcurrentFanoutRequests = 32;
         private const int defaultMaxConcurrentConnectionLimit = 50;
 
         private static ConnectionPolicy defaultPolicy;
@@ -35,10 +32,7 @@ namespace Microsoft.Azure.Cosmos
         {
             this.connectionProtocol = Protocol.Https;
             this.RequestTimeout = TimeSpan.FromSeconds(ConnectionPolicy.defaultRequestTimeout);
-            this.MediaRequestTimeout = TimeSpan.FromSeconds(ConnectionPolicy.defaultMediaRequestTimeout);
             this.ConnectionMode = ConnectionMode.Gateway;
-            this.MaxConcurrentFanoutRequests = defaultMaxConcurrentFanoutRequests;
-            this.MediaReadMode = MediaReadMode.Buffered;
             this.UserAgentContainer = new UserAgentContainer();
             this.preferredLocations = new ObservableCollection<string>();
             this.EnableEndpointDiscovery = true;
@@ -86,34 +80,11 @@ namespace Microsoft.Azure.Cosmos
         }
 
         /// <summary>
-        /// Gets or sets the maximum number of concurrent fanout requests sent to the Azure Cosmos DB service.
-        /// </summary>
-        /// <value>Default value is 32.</value>
-        internal int MaxConcurrentFanoutRequests
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
         /// Gets or sets the request timeout in seconds when connecting to the Azure Cosmos DB service.
         /// The number specifies the time to wait for response to come back from network peer.
         /// </summary>
         /// <value>Default value is 10 seconds.</value>
         public TimeSpan RequestTimeout
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// Gets or sets the media request timeout in seconds when connecting to the Azure Cosmos DB service.
-        /// The number specifies the time to wait for response to come back from network peer for attachment content (a.k.a. media) operations.
-        /// </summary>
-        /// <value>
-        /// Default value is 300 seconds.
-        /// </value>
-        public TimeSpan MediaRequestTimeout
         {
             get;
             set;
@@ -129,18 +100,6 @@ namespace Microsoft.Azure.Cosmos
         /// For more information, see <see href="https://docs.microsoft.com/en-us/azure/documentdb/documentdb-performance-tips#direct-connection">Connection policy: Use direct connection mode</see>.
         /// </remarks>
         public ConnectionMode ConnectionMode
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// Gets or sets the attachment content (a.k.a. media) download mode when connecting to the Azure Cosmos DB service.
-        /// </summary>
-        /// <value>
-        /// Default value is <see cref="Cosmos.MediaReadMode.Buffered"/>.
-        /// </value>
-        public MediaReadMode MediaReadMode
         {
             get;
             set;
@@ -461,11 +420,6 @@ namespace Microsoft.Azure.Cosmos
             {
                 this.preferredLocations.CollectionChanged -= value;
             }
-        }
-
-        internal RetryWithConfiguration GetRetryWithConfiguration()
-        {
-            return this.RetryOptions?.GetRetryWithConfiguration();
         }
     }
 }

@@ -65,7 +65,7 @@ namespace Microsoft.Azure.Cosmos
             CosmosDiagnosticsContext diagnosticsContext = CosmosDiagnosticsContext.Create(this.requestOptions);
             using (diagnosticsContext.GetOverallScope())
             {
-                return await this.ReadNextInternalAsync(diagnosticsContext, cancellationToken);
+                return await this.ReadNextInternalAsync(diagnosticsContext, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -101,7 +101,7 @@ namespace Microsoft.Azure.Cosmos
                    }
                },
                diagnosticsContext: diagnostics,
-               cancellationToken: cancellationToken);
+               cancellationToken: cancellationToken).ConfigureAwait(false);
 
             this.ContinuationToken = responseMessage.Headers.ContinuationToken;
             this.hasMoreResultsInternal = this.ContinuationToken != null && responseMessage.StatusCode != HttpStatusCode.NotModified;
@@ -153,7 +153,7 @@ namespace Microsoft.Azure.Cosmos
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            ResponseMessage response = await this.feedIterator.ReadNextAsync(cancellationToken);
+            ResponseMessage response = await this.feedIterator.ReadNextAsync(cancellationToken).ConfigureAwait(false);
             return this.responseCreator(response);
         }
 
