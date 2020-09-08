@@ -7,8 +7,10 @@ namespace Microsoft.Azure.Cosmos.Common
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.Azure.Documents;
 
     /// <summary>
     /// Cache which supports asynchronous value initialization.
@@ -220,41 +222,6 @@ namespace Microsoft.Azure.Cosmos.Common
             {
                 _ = task.ContinueWith(c => { _ = c.Exception; }, default, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             }
-        }
-
-        /// <summary>
-        /// Runs a background task that will started refreshing the cached value for a given key.
-        /// This observes the same logic as GetAsync - a running value will still take precedence over a call to this.
-        /// </summary>
-        /// <param name="key">Key.</param>
-        /// <param name="singleValueInitFunc">Generator function.</param>
-        public void BackgroundRefreshNonBlocking(TKey key, Func<Task<TValue>> singleValueInitFunc)
-        {
-            // Trigger background refresh of cached value.
-            // Fire and forget.
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    AsyncLazy<TValue> initialLazyValue;
-
-                    // If we don't have a value, or we have one that has completed running (i.e. if a value is currently being generated, we do nothing).
-                    if (!this.values.TryGetValue(key, out initialLazyValue) || (initialLazyValue.IsValueCreated && initialLazyValue.Value.IsCompleted))
-                    {
-                        // Use GetAsync to trigger the generation of a value.
-                        await this.GetAsync(
-                            key,
-                            default(TValue), // obsolete value unused since forceRefresh: true
-                            singleValueInitFunc,
-                            CancellationToken.None,
-                            forceRefresh: true);
-                    }
-                }
-                catch
-                {
-                    // Observe all exceptions.
-                }
-            });
         }
     }
 }

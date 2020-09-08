@@ -201,7 +201,7 @@ namespace Microsoft.Azure.Cosmos
 
         private async Task RunCongestionControlAsync()
         {
-            while (!this.cancellationTokenSource.IsCancellationRequested)
+            while (!this.cancellationTokenSource.Token.IsCancellationRequested)
             {
                 long elapsedTimeInMilliseconds = this.partitionMetric.TimeTakenInMilliseconds - this.oldPartitionMetric.TimeTakenInMilliseconds;
 

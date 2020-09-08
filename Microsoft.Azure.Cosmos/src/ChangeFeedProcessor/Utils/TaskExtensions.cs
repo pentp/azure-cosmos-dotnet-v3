@@ -11,7 +11,7 @@ namespace Microsoft.Azure.Cosmos.ChangeFeed.Utils
         public static void LogException(this Task task)
         {
 #pragma warning disable VSTHRD110 // Observe result of async calls
-            task.ContinueWith(_ => Extensions.TraceException(task.Exception), default, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+            task.ContinueWith(t => Extensions.TraceException(t.Exception), default, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
 #pragma warning restore VSTHRD110 // Observe result of async calls
         }
     }

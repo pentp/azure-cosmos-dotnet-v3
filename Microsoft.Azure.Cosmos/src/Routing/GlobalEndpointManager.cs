@@ -316,7 +316,7 @@ namespace Microsoft.Azure.Cosmos.Routing
             return this.databaseAccountCache.GetAsync(
                 string.Empty,
                 null,
-                () => GetDatabaseAccountFromAnyLocationsAsync(this.defaultEndpoint, this.connectionPolicy.PreferredLocations, this.GetDatabaseAccountAsync),
+                () => GlobalEndpointManager.GetDatabaseAccountFromAnyLocationsAsync(this.defaultEndpoint, this.connectionPolicy.PreferredLocations, this.GetDatabaseAccountAsync),
                 this.cancellationTokenSource.Token,
                 forceRefresh: true);
         }

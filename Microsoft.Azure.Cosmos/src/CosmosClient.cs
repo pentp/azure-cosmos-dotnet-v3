@@ -498,7 +498,7 @@ namespace Microsoft.Azure.Cosmos
                 using (ResponseMessage readResponse = await database.ReadStreamAsync(
                     diagnosticsContext: diagnostics,
                     requestOptions: requestOptions,
-                    cancellationToken: cancellationToken))
+                    cancellationToken: cancellationToken).ConfigureAwait(false))
                 {
                     if (readResponse.StatusCode != HttpStatusCode.NotFound)
                     {
@@ -914,7 +914,7 @@ namespace Microsoft.Azure.Cosmos
                 streamPayload: this.ClientContext.SerializerCore.ToStream<DatabaseProperties>(databaseProperties),
                 requestEnricher: (httpRequestMessage) => httpRequestMessage.AddThroughputPropertiesHeader(throughputProperties),
                 diagnosticsContext: diagnosticsContext,
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return this.ClientContext.ResponseFactory.CreateDatabaseResponse(this.GetDatabase(databaseProperties.Id), response);
         }

@@ -9,6 +9,7 @@ namespace Microsoft.Azure.Cosmos
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.IO;
+    using System.Linq;
     using System.Net.Http;
     using System.Net.Http.Headers;
     using System.Text;
@@ -60,7 +61,7 @@ namespace Microsoft.Azure.Cosmos
 
         internal override async Task<StoreResponse> InvokeStoreAsync(Uri baseAddress, ResourceOperation resourceOperation, DocumentServiceRequest request)
         {
-            Uri physicalAddress = IsFeedRequest(request.OperationType) ?
+            Uri physicalAddress = GatewayStoreClient.IsFeedRequest(request.OperationType) ?
                 HttpTransportClient.GetResourceFeedUri(resourceOperation.resourceType, baseAddress, request) :
                 HttpTransportClient.GetResourceEntryUri(resourceOperation.resourceType, baseAddress, request);
 
@@ -318,7 +319,7 @@ namespace Microsoft.Azure.Cosmos
             {
                 foreach (string key in request.Headers)
                 {
-                    if (IsAllowedRequestHeader(key))
+                    if (GatewayStoreClient.IsAllowedRequestHeader(key))
                     {
                         if (key.Equals(HttpConstants.HttpHeaders.ContentType, StringComparison.OrdinalIgnoreCase))
                         {
@@ -352,7 +353,7 @@ namespace Microsoft.Azure.Cosmos
             {
                 diagnosticsContext = cosmosClientSideRequestStatistics.DiagnosticsContext;
             }
-
+            
             return this.httpClient.SendHttpAsync(
                 () => this.PrepareRequestMessageAsync(request, physicalAddress),
                 resourceType,

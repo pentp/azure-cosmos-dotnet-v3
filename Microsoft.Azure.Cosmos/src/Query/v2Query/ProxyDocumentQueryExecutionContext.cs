@@ -107,7 +107,7 @@ namespace Microsoft.Azure.Cosmos.Query
                 throw new InvalidOperationException(RMResources.DocumentQueryExecutionContextIsDone);
             }
 
-            Error error;
+            Error error = null;
 
             try
             {
@@ -126,7 +126,7 @@ namespace Microsoft.Azure.Cosmos.Query
 
             List<PartitionKeyRange> partitionKeyRanges =
                 await
-                    queryExecutionContext.GetTargetPartitionKeyRangesAsync(this.collection.ResourceId,
+                    queryExecutionContext.GetTargetPartitionKeyRangesAsync(collection.ResourceId,
                         partitionedQueryExecutionInfo.QueryRanges).ConfigureAwait(false);
 
             DocumentQueryExecutionContextBase.InitParams constructorParams = new DocumentQueryExecutionContextBase.InitParams(this.client, this.resourceTypeEnum, this.resourceType, this.expression, this.feedOptions, this.resourceLink, false, correlatedActivityId);

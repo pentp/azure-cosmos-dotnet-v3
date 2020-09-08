@@ -6,6 +6,7 @@ namespace Microsoft.Azure.Cosmos
 {
     using System;
     using System.ComponentModel;
+    using System.IO;
     using System.Runtime.InteropServices;
     using System.Security;
     using Microsoft.Azure.Cosmos.Core.Trace;

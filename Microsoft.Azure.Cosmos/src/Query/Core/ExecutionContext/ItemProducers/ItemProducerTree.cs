@@ -12,6 +12,7 @@ namespace Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.ItemProducers
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.Cosmos.CosmosElements;
+    using Microsoft.Azure.Cosmos.Diagnostics;
     using Microsoft.Azure.Cosmos.Query.Core;
     using Microsoft.Azure.Cosmos.Query.Core.Collections;
     using Microsoft.Azure.Cosmos.Query.Core.QueryClient;
@@ -568,6 +569,8 @@ namespace Microsoft.Azure.Cosmos.Query.Core.ExecutionContext.ItemProducers
 
         private async Task<(bool successfullyMovedNext, QueryResponseCore? failureResponse)> BufferMoreDocumentsImplementationAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (this.CurrentItemProducerTree == this)
             {
                 if (!this.HasMoreBackendResults || this.HasSplit)
