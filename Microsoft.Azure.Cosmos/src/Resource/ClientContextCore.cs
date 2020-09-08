@@ -330,7 +330,7 @@ namespace Microsoft.Azure.Cosmos
             CosmosDiagnosticsContext diagnosticsContext = CosmosDiagnosticsContextCore.Create(requestOptions: null);
             using (diagnosticsContext.GetOverallScope())
             {
-                ClientCollectionCache collectionCache = await this.DocumentClient.GetCollectionCacheAsync();
+                ClientCollectionCache collectionCache = await this.DocumentClient.GetCollectionCacheAsync().ConfigureAwait(false);
                 try
                 {
                     using (diagnosticsContext.CreateScope("ContainerCache.ResolveByNameAsync"))
@@ -338,7 +338,7 @@ namespace Microsoft.Azure.Cosmos
                         return await collectionCache.ResolveByNameAsync(
                             HttpConstants.Versions.CurrentVersion,
                             containerUri,
-                            cancellationToken);
+                            cancellationToken).ConfigureAwait(false);
                     }
                 }
                 catch (DocumentClientException ex)
@@ -451,7 +451,7 @@ namespace Microsoft.Azure.Cosmos
             TransactionalBatchOperationResult batchOperationResult = await cosmosContainerCore.BatchExecutor.AddAsync(
                 itemBatchOperation,
                 itemRequestOptions,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             return batchOperationResult.ToResponseMessage();
         }
